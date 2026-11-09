@@ -1,0 +1,26 @@
+{
+  "executed_at": "2026-11-09T04:57:09.089Z",
+  "real_auth": true,
+  "real_database": true,
+  "model_or_jev_network_calls": false,
+  "checks": [
+    "unauthenticated API is denied",
+    "real Supabase login opens ERP workbench",
+    "100 on-hand minus 70 reserved yields shortage 20 for demand 50",
+    "Memory confirmation and revocation persist; rules do not claim to consume Memory",
+    "missing model configuration is reported as failed model execution",
+    "Jev material requires explicit confirmation",
+    "stale analysis cannot create purchase after inventory changes",
+    "purchase draft retry returns same receipt",
+    "existing planned procurement is deducted from new recommendations",
+    "requester cannot approve own purchase by default",
+    "purchase approval and two partial receipts complete against real DB",
+    "shipment consumes reserved and physical stock consistently",
+    "receivable manual reconciliation is persisted",
+    "inventory and ledger UI renders real data",
+    "master data form persists through real command API",
+    "mobile layout fits viewport",
+    "no browser runtime errors"
+  ],
+  "console_errors": []
+}

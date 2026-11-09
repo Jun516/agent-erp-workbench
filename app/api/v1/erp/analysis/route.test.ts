@@ -1,0 +1,23 @@
+import {beforeEach,describe,it,expect,vi} from "vitest";
+vi.mock("@/lib/auth/require-role",()=>({requireRole:vi.fn()}));
+vi.mock("@/lib/impersonate/support",()=>({requireSupportWrite:vi.fn()}));
+vi.mock("@/lib/audit",()=>({audit:vi.fn()}));
+vi.mock("@/lib/erp/agent/service",()=>({listErpAnalyses:vi.fn(),runErpAnalysis:vi.fn(),reviewErpAnalysis:vi.fn(),confirmErpMemory:vi.fn(),revokeErpMemory:vi.fn()}));
+import {requireRole} from "@/lib/auth/require-role";
+import {requireSupportWrite} from "@/lib/impersonate/support";
+import {runErpAnalysis,listErpAnalyses,reviewErpAnalysis,confirmErpMemory} from "@/lib/erp/agent/service";
+import {GET,POST} from "./route";
+import {POST as review} from "./[id]/review/route";
+import {POST as confirm} from "./memory/route";
+const org="11111111-1111-4111-8111-111111111111",actor="22222222-2222-4222-8222-222222222222",order="33333333-3333-4333-8333-333333333333";
+const req=(body:unknown)=>new Request("http://localhost/api/v1/erp/analysis",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+describe("ERP analysis route authority",()=>{
+ beforeEach(()=>{vi.clearAllMocks();vi.mocked(requireSupportWrite).mockResolvedValue(null);vi.mocked(requireRole).mockResolvedValue({ok:true,user:{id:actor},org:{orgId:org,role:"admin"}} as Awaited<ReturnType<typeof requireRole>>);});
+ it("拒绝未认证请求，不调用读取",async()=>{vi.mocked(requireRole).mockResolvedValue({ok:false,response:new Response("denied",{status:401})} as Awaited<ReturnType<typeof requireRole>>);expect((await GET()).status).toBe(401);expect(listErpAnalyses).not.toHaveBeenCalled();});
+ it("只读支持会话不能触发模型或持久写入",async()=>{vi.mocked(requireSupportWrite).mockResolvedValue(new Response("denied",{status:403}) as Awaited<ReturnType<typeof requireSupportWrite>>);expect((await POST(req({order_id:order,mode:"model"}))).status).toBe(403);expect(runErpAnalysis).not.toHaveBeenCalled();});
+ it("body不能指定另一组织或actor",async()=>{expect((await POST(req({order_id:order,mode:"rules",organization_id:order}))).status).toBe(422);expect(runErpAnalysis).not.toHaveBeenCalled();});
+ it("实际org/actor只来自验证会话",async()=>{vi.mocked(runErpAnalysis).mockResolvedValue({id:order,mode:"rules",status:"completed"} as Awaited<ReturnType<typeof runErpAnalysis>>);expect((await POST(req({order_id:order,mode:"rules",refinement:false}))).status).toBe(200);expect(runErpAnalysis).toHaveBeenCalledWith(org,actor,{order_id:order,mode:"rules",refinement:false});});
+ it("Jev必须显式true，不得默认外发",async()=>{expect((await review(req({share_material:false}),{params:Promise.resolve({id:order})})).status).toBe(422);expect(reviewErpAnalysis).not.toHaveBeenCalled();});
+ it("Jev接口要求manager权限",async()=>{vi.mocked(reviewErpAnalysis).mockResolvedValue({verdict:"needs_review"} as Awaited<ReturnType<typeof reviewErpAnalysis>>);expect((await review(req({share_material:true}),{params:Promise.resolve({id:order})})).status).toBe(200);expect(requireRole).toHaveBeenCalledWith("manager",expect.any(Object));expect(reviewErpAnalysis).toHaveBeenCalledWith(org,actor,order);});
+ it("Memory由经理确认且必须有有效期",async()=>{expect((await confirm(req({scope_type:"product",scope_id:order,content:"采购规则已确认"}))).status).toBe(422);expect(confirmErpMemory).not.toHaveBeenCalled();expect(requireRole).toHaveBeenCalledWith("manager",expect.any(Object));});
+});

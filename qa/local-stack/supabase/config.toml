@@ -1,0 +1,31 @@
+project_id = "agent-erp-qa-20261109"
+[api]
+enabled = true
+port = 55421
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+[db]
+port = 55422
+shadow_port = 55420
+major_version = 15
+[db.seed]
+enabled = false
+[studio]
+enabled = false
+[local_smtp]
+enabled = false
+[storage]
+enabled = false
+[realtime]
+enabled = false
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3015"
+additional_redirect_urls = ["http://127.0.0.1:3015/auth/confirm"]
+enable_signup = true
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+[analytics]
+enabled = false

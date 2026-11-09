@@ -1,0 +1,8 @@
+{
+  "executed_at": "2026-11-09T04:53:18.982Z",
+  "fresh_install": true,
+  "idempotent_update": true,
+  "erp_tables": 17,
+  "baseline_sha256": "0d2ab0f413d141b0e3da1451c397103f01613f4c32a2fbbad2a36a8109465aaa",
+  "supabase_prerequisites": "canonical scripts/test-db.sh prelude; Auth/Storage schemas stubbed for schema-only check"
+}

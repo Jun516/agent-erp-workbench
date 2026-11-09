@@ -1,0 +1,68 @@
+name: ERP checks
+
+# This fork publishes source only. No image push, release, deployment or webhook.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Synthetic loopback-only configuration. No repository/provider secrets are used.
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  SENTRY_DSN: "off"
+  CRM_DEMO_MODE: "false"
+  NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
+  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:1"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "erp-ci-anon-not-a-real-key"
+  SUPABASE_SERVICE_ROLE_KEY: "erp-ci-service-not-a-real-key"
+  SUPABASE_DB_URL: "postgresql://postgres:unused@127.0.0.1:1/erp_ci"
+  INTERNAL_SECRET: "erp-ci-not-a-real-internal-secret-00000000"
+  CPF_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  WAHA_BYO_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  AI_CRED_AES_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+jobs:
+  erp-application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ${{ github.workflow }}-application-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 5
+      - name: TypeScript
+        run: pnpm typecheck
+      - name: ERP code lint
+        run: pnpm exec eslint lib/erp app/api/v1/erp app/app/erp tests/unit/erp-routes.test.ts tests/unit/erp-workbench.test.tsx tests/unit/erp-agent-panel.test.tsx
+      - name: ERP, Agent, Jev protocol, UI and navigation tests
+        run: >-
+          pnpm exec vitest run
+          lib/erp/agent
+          app/api/v1/erp/analysis/route.test.ts
+          tests/unit/erp-routes.test.ts
+          tests/unit/erp-workbench.test.tsx
+          tests/unit/erp-agent-panel.test.tsx
+          tests/unit/navegacao-completude.test.ts
+          tests/unit/pontos-de-ia-completude.test.ts
+      - name: Production build
+        run: pnpm build
+
+  erp-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ${{ github.workflow }}-database-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar-node
+        timeout-minutes: 5
+      - name: Baseline install/update and ERP transaction invariants
+        run: pnpm test:db tests/invariants/erp-ledger.test.ts
